@@ -14,13 +14,15 @@ import uuid
 import json
 import google.auth.transport.requests
 import requests
+import pytz
 
 # ============================================
 # CONFIGURACIÓN
 # ============================================
 
-PROJECT_ID = os.getenv("PROJECT_ID")
-DATASET = os.getenv("DATASET_ID")
+PROJECT_ID = "worldwide-470917"
+DATASET = "app_clientes"
+
 # Tablas
 TABLE_USUARIOS = f"{PROJECT_ID}.{DATASET}.usuarios_app"
 TABLE_USUARIO_INST = f"{PROJECT_ID}.{DATASET}.usuario_instalaciones"
@@ -264,7 +266,13 @@ async def enviar_notificaciones_push():
     Se ejecuta diariamente vía Cloud Scheduler.
     """
     try:
-        ahora = datetime.now()
+        # Obtener hora actual en zona horaria de Chile
+        tz_chile = pytz.timezone('America/Santiago')
+        ahora_utc = datetime.now(pytz.UTC)
+        ahora_chile = ahora_utc.astimezone(tz_chile)
+        
+        print(f"🕐 Hora UTC: {ahora_utc.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        print(f"🕐 Hora Chile: {ahora_chile.strftime('%Y-%m-%d %H:%M:%S %Z')}")
         
         # 1. Verificar horario permitido
         query_config = f"""
@@ -281,32 +289,36 @@ async def enviar_notificaciones_push():
         
         # Verificar si están activas
         if not config['notificaciones_activas']:
+            print("⚠️ Notificaciones desactivadas")
             return {"success": True, "message": "Notificaciones desactivadas", "enviadas": 0}
         
-        # Verificar día laboral
-        dia_semana = ahora.isoweekday()
+        # Verificar día laboral (usar hora de Chile)
+        dia_semana = ahora_chile.isoweekday()
         if dia_semana not in config['dias_laborales']:
+            print(f"⚠️ Fuera de días laborales. Día actual: {dia_semana}, Días permitidos: {config['dias_laborales']}")
             return {"success": True, "message": "Fuera de días laborales", "enviadas": 0}
         
-        # Verificar horario
-        hora_actual = ahora.hour
+        # Verificar horario (usar hora de Chile)
+        hora_actual = ahora_chile.hour
         if hora_actual < config['horario_inicio'] or hora_actual >= config['horario_fin']:
+            print(f"⚠️ Fuera de horario. Hora actual: {hora_actual}, Horario permitido: {config['horario_inicio']}-{config['horario_fin']}")
             return {"success": True, "message": "Fuera de horario", "enviadas": 0}
         
-        # 2. Obtener notificaciones pendientes
+        # 2. Obtener notificaciones pendientes (comparar en UTC)
         query_notif = f"""
         SELECT *
         FROM `{TABLE_ENCUESTAS_NOTIF_PROG}`
         WHERE estado = 'pendiente'
-          AND fecha_programada <= @ahora
+          AND fecha_programada <= @ahora_utc
         ORDER BY fecha_programada ASC
         LIMIT 100
         """
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("ahora", "TIMESTAMP", ahora),
+                bigquery.ScalarQueryParameter("ahora_utc", "TIMESTAMP", ahora_utc),
             ]
         )
+        print(f"📊 Buscando notificaciones programadas antes de: {ahora_utc.strftime('%Y-%m-%d %H:%M:%S %Z')}")
         notificaciones = list(client.query(query_notif, job_config=job_config).result())
         
         if not notificaciones:
@@ -352,7 +364,7 @@ async def enviar_notificaciones_push():
                         'encuesta_id': json.loads(notif_dict['data'])['encuesta_id'],
                         'email_destinatario': obtener_email_por_token(notif_dict['fcm_token']),
                         'tipo_notificacion': json.loads(notif_dict['data'])['tipo'],
-                        'fecha_envio': ahora,
+                        'fecha_envio': ahora_utc,
                         'estado': 'exitoso',
                         'error_mensaje': None
                     })
@@ -378,7 +390,7 @@ async def enviar_notificaciones_push():
                         'encuesta_id': json.loads(notif_dict['data'])['encuesta_id'],
                         'email_destinatario': obtener_email_por_token(notif_dict['fcm_token']),
                         'tipo_notificacion': json.loads(notif_dict['data'])['tipo'],
-                        'fecha_envio': ahora,
+                        'fecha_envio': ahora_utc,
                         'estado': 'fallido',
                         'error_mensaje': resultado['error']
                     })
@@ -535,5 +547,4 @@ def obtener_email_por_token(fcm_token):
 # ============================================
 
 if __name__ == "__main__":
-
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
