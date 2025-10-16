@@ -19,9 +19,8 @@ import requests
 # CONFIGURACIÓN
 # ============================================
 
-PROJECT_ID = "worldwide-470917"
-DATASET = "app_clientes"
-
+PROJECT_ID = os.getenv("PROJECT_ID")
+DATASET = os.getenv("DATASET_ID")
 # Tablas
 TABLE_USUARIOS = f"{PROJECT_ID}.{DATASET}.usuarios_app"
 TABLE_USUARIO_INST = f"{PROJECT_ID}.{DATASET}.usuario_instalaciones"
@@ -536,4 +535,5 @@ def obtener_email_por_token(fcm_token):
 # ============================================
 
 if __name__ == "__main__":
+
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
