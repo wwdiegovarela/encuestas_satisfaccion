@@ -364,7 +364,7 @@ async def enviar_notificaciones_push():
                         'encuesta_id': json.loads(notif_dict['data'])['encuesta_id'],
                         'email_destinatario': obtener_email_por_token(notif_dict['fcm_token']),
                         'tipo_notificacion': json.loads(notif_dict['data'])['tipo'],
-                        'fecha_envio': ahora_utc,
+                        'fecha_envio': ahora_utc.isoformat(),
                         'estado': 'exitoso',
                         'error_mensaje': None
                     })
@@ -390,7 +390,7 @@ async def enviar_notificaciones_push():
                         'encuesta_id': json.loads(notif_dict['data'])['encuesta_id'],
                         'email_destinatario': obtener_email_por_token(notif_dict['fcm_token']),
                         'tipo_notificacion': json.loads(notif_dict['data'])['tipo'],
-                        'fecha_envio': ahora_utc,
+                        'fecha_envio': ahora_utc.isoformat(),
                         'estado': 'fallido',
                         'error_mensaje': resultado['error']
                     })
@@ -437,7 +437,7 @@ def programar_notificaciones(encuesta_id, fcm_token, instalacion,
         'titulo': '📋 Nueva Encuesta Disponible',
         'cuerpo': f'Tiene una nueva encuesta de satisfacción para {instalacion}',
         'data': json.dumps({"encuesta_id": encuesta_id, "tipo": "nueva"}),
-        'fecha_programada': fecha_1,
+        'fecha_programada': fecha_1.isoformat(),
         'estado': 'pendiente',
         'fecha_envio': None,
         'error_mensaje': None
@@ -455,7 +455,7 @@ def programar_notificaciones(encuesta_id, fcm_token, instalacion,
         'titulo': '🔔 Recordatorio de Encuesta',
         'cuerpo': f'Recuerde completar la encuesta de {instalacion}',
         'data': json.dumps({"encuesta_id": encuesta_id, "tipo": "recordatorio_1"}),
-        'fecha_programada': fecha_2,
+        'fecha_programada': fecha_2.isoformat(),
         'estado': 'pendiente',
         'fecha_envio': None,
         'error_mensaje': None
@@ -473,7 +473,7 @@ def programar_notificaciones(encuesta_id, fcm_token, instalacion,
         'titulo': '⚠️ Último Recordatorio',
         'cuerpo': f'La encuesta de {instalacion} vence pronto',
         'data': json.dumps({"encuesta_id": encuesta_id, "tipo": "recordatorio_2"}),
-        'fecha_programada': fecha_3,
+        'fecha_programada': fecha_3.isoformat(),
         'estado': 'pendiente',
         'fecha_envio': None,
         'error_mensaje': None
@@ -484,7 +484,8 @@ def programar_notificaciones(encuesta_id, fcm_token, instalacion,
 
 def ajustar_fecha_laboral(fecha, hora_inicio, dias_laborales):
     """Ajusta fecha a día laboral"""
-    while fecha.isoweekday() not in dias_laborales:
+    # dias_laborales usa formato weekday(): 0=Lunes, 1=Martes, ..., 4=Viernes
+    while fecha.weekday() not in dias_laborales:
         fecha += timedelta(days=1)
     fecha = fecha.replace(hour=hora_inicio, minute=0, second=0, microsecond=0)
     return fecha
