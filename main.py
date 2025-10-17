@@ -293,7 +293,7 @@ async def enviar_notificaciones_push():
             return {"success": True, "message": "Notificaciones desactivadas", "enviadas": 0}
         
         # Verificar día laboral (usar hora de Chile)
-        dia_semana = ahora_chile.isoweekday()
+        dia_semana = ahora_chile.weekday()  # 0=Lunes, 1=Martes, ..., 4=Viernes, 5=Sábado, 6=Domingo
         if dia_semana not in config['dias_laborales']:
             print(f"⚠️ Fuera de días laborales. Día actual: {dia_semana}, Días permitidos: {config['dias_laborales']}")
             return {"success": True, "message": "Fuera de días laborales", "enviadas": 0}
